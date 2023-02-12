@@ -38,12 +38,16 @@ class Board():
             Pawn("b_P", 7, 7),
             Pawn("b_P", 8, 7),
         ]
+        self.piece_locations = [piece.get_board_position() for piece in self.pieces]
         self.move_dots = []
         self.entities = self.pieces + self.move_dots
         self.active_piece = None
         self.image = pygame.image.load("images\\board.png").convert()
         self.screen = screen
-        
+    
+    def update_piece_locations(self):
+        self.piece_locations = [piece.get_board_position() for piece in self.pieces]
+    
     def display(self):
         screen.blit(self.image, (0, 0))
 
@@ -60,53 +64,65 @@ class Pieces():
     def get_position(self):
         return (self.rank - 1) * 60 - 1, 480 - (self.file * 60)
     
+    def get_board_position(self):
+        return (self.rank, self.file)
+    
     def display(self, screen: pygame.Surface):
         x, y = self.get_position()
         self.rect.left = x
         self.rect.top = y
         screen.blit(self.image, (x, y))
     
-    
     def legal_moves(self):  # sourcery skip: low-code-quality        
-        squares = list(range(1,9))
         limit = self.legal[1]
-
         legal_squares_file = []
         legal_squares_rank = []
         legal_squares_diagonal = []
         legal_squares_knight = []
 
         if self.legal[0][0]:
-            start_file = (self.file - 1) if self.colour == "w" and self.name[2] == "P" else (max(1, self.file - limit) - 1)
-            end_file = self.file if self.colour == "b" and self.name[2] == "P" else min(self.file + limit, 8)
-            legal_squares_file = (
-                (squares[start_file : end_file])
-                if limit
-                else squares.copy()
-            )
-            legal_squares_file = [(self.rank, y) for y in legal_squares_file if y != self.file]
+            lsfb = [list(map(int, x)) for x in "12345678".split(str(self.file))]
+            lsfb[0].reverse()
+
+            for move_list in lsfb:
+                if limit:
+                    move_list = move_list[:limit]
+                for move in move_list:
+                    if (self.rank, move) in board.piece_locations:
+                        break
+                    if (
+                        self.name[2] == "P"
+                        and (self.colour == "w" and move < self.file)
+                        or (self.colour == "b" and move > self.file)
+                    ):
+                        continue
+                    legal_squares_file.append((self.rank, move))
 
         if self.legal[0][1]:
-            legal_squares_rank = (
-                (squares[max(1, self.rank - limit) - 1 : min(self.rank + limit, 8)])
-                if limit
-                else squares.copy()
-            )
-            legal_squares_rank = [(x, self.file) for x in legal_squares_rank if x != self.rank]
+            lsrb = [list(map(int, x)) for x in "12345678".split(str(self.rank))]
+            lsrb[0].reverse()
+
+            for move_list in lsrb:
+                if limit:
+                    move_list = move_list[:limit]
+                for move in move_list:
+                    if (move, self.file) in board.piece_locations:
+                        break
+                    legal_squares_rank.append((move, self.file))
 
         if self.legal[0][2]:
             for i in range(1, 9):
                 if i < limit + 1 or limit == 0:
                     if self.rank - i > 0:
                         if self.file - i > 0:
-                            legal_squares_diagonal.append([self.rank - i, self.file - i])
+                            legal_squares_diagonal.append((self.rank - i, self.file - i))
                         if self.file + i <= 8:
-                            legal_squares_diagonal.append([self.rank - i, self.file+ i])
+                            legal_squares_diagonal.append((self.rank - i, self.file + i))
                     if self.rank + i <= 8:
                         if self.file + i <= 8:
-                            legal_squares_diagonal.append([self.rank + i, self.file + i])
+                            legal_squares_diagonal.append((self.rank + i, self.file + i))
                         if self.file - i > 0:
-                            legal_squares_diagonal.append([self.rank + i, self.file - i])
+                            legal_squares_diagonal.append((self.rank + i, self.file - i))
 
         #knight movement
         if self.legal[0][3]:
@@ -124,7 +140,15 @@ class Pieces():
             )
             legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9)]
 
-        return legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
+        all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
+        all_moves.sort()
+        # print(all_moves)
+        # legal_moves = [square for square in all_moves if square not in board.piece_locations]
+        # print(legal_moves)
+        # legal_captures = [square for square in all_moves if square in board.piece_locations]
+        # print(legal_captures)
+        
+        return all_moves
     
 class Pawn(Pieces):
     # shadow pawns behind two square moves that only other pawns can see
@@ -183,36 +207,40 @@ while not done:
             x, y = event.pos
             for piece in board.entities:
                 if piece.rect.collidepoint(x, y):
-                    if not piece.game_piece:
-                        # print(f"{board.active_piece.name[0]}{board.active_piece.name[2]}: {board.active_piece.name[4:]}-{al[piece.rank-1]}{piece.file}")
-                        
+                    if isinstance(piece, Move):
+                        print(f"{board.active_piece.name[0]}{board.active_piece.name[2]}: {board.active_piece.name[4:]}-{al[piece.rank-1]}{piece.file}")
                         board.active_piece.name = f"{board.active_piece.name[:3]}_{al[piece.rank-1]}{piece.file}"
                         board.active_piece.rank = piece.rank
                         board.active_piece.file = piece.file
-                        
+
                         if hasattr(board.active_piece, "start"):
                             board.active_piece.start = False
                             board.active_piece.legal[1] = 1
                         if hasattr(board.active_piece, "castle"):
                             board.active_piece.castle = False
-                        
-                        board.move_dots, board.entities, board.active_piece = [], board.pieces, None
-                    
+
+                        board.move_dots = []
+                        board.entities = board.pieces
+                        board.active_piece = None
+                        board.update_piece_locations()
+
                     elif piece == board.active_piece:
                         board.active_piece = None
                         board.move_dots = []
                         board.entities = board.pieces
-                    
+
                     else:
-                        board.move_dots, board.entities, board.active_piece = [], board.pieces, piece
+                        # print("piece")
+                        board.move_dots = []
+                        board.entities = board.pieces
+                        board.active_piece = piece
                         legal_squares = piece.legal_moves()
                         board.move_dots.extend(Move(square) for square in legal_squares)
                         board.entities = board.entities + board.move_dots
 
     board.display()
-    for piece in board.entities:
+    for piece in board.pieces:
         piece.display(screen)
-        # --- update the screen with what we've drawn
     for dot in board.move_dots:
         dot.display(screen)
     pygame.display.flip()
