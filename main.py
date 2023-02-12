@@ -106,6 +106,10 @@ class Pieces():
                         legal_squares_diagonal.append([self.rank + i, self.file - i])
                     if self.rank - i > 0 and self.file + i <= 8:
                         legal_squares_diagonal.append([self.rank - i, self.file+ i])
+        
+        #knight movement
+        if self.legal[0][3]:
+            pass
 
         return legal_squares_rank + legal_squares_file + legal_squares_diagonal
     
