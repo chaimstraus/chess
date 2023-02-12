@@ -67,36 +67,33 @@ class Pieces():
         screen.blit(self.image, (x, y))
     
     
-    def legal_moves(self):
-        limit = self.legal[1]
-        
+    def legal_moves(self):  # sourcery skip: low-code-quality        
         squares = list(range(1,9))
         rank = self.rank
         file = self.file
+        limit = self.legal[1]
         
         legal_squares_file = []
         legal_squares_rank = []
         legal_squares_diagonal = []
-        
+
         if self.legal[0][0]:
             start_file = (file - 1) if self.colour == "w" and self.name[2] == "P" else (max(1, file - limit) - 1)
             end_file = file if self.colour == "b" and self.name[2] == "P" else min(file + limit, 8)
             legal_squares_file = (
                 (squares[start_file : end_file])
                 if limit
-                else squares
+                else squares.copy()
             )
-            legal_squares_file.remove(file)
-            legal_squares_file = [(self.rank, y) for y in legal_squares_file]
+            legal_squares_file = [(self.rank, y) for y in legal_squares_file if y != file]
             
         if self.legal[0][1]:
             legal_squares_rank = (
                 (squares[max(1, rank - limit) - 1 : min(rank + limit, 8)])
                 if limit
-                else squares
+                else squares.copy()
             )
-            legal_squares_rank.remove(rank)
-            legal_squares_rank = [(x, self.file) for x in legal_squares_rank]
+            legal_squares_rank = [(x, self.file) for x in legal_squares_rank if x != rank]
         
         if self.legal[0][2]:
             for i in range(1, 9):
@@ -111,40 +108,6 @@ class Pieces():
                         legal_squares_diagonal.append([self.rank - i, self.file+ i])
 
         return legal_squares_rank + legal_squares_file + legal_squares_diagonal
-    
-    def straight_legal(self, location): #up-down, left-right
-        limit = self.legal[1]
-        squares = list(range(1,9))
-        
-        start = (location - 1) if self.colour == "w" and self.name[2] == "P" else (max(1, location - limit) - 1)
-        end = location if self.colour == "b" and self.name[2] == "P" else min(location + limit, 8)
-        
-        legal_squares = (
-            (squares[start : end])
-            if limit
-            else squares
-        )
-        legal_squares.remove(location)
-        print(legal_squares, "<-- legal by straight")
-        return legal_squares
-    
-    #HORIZONTAL IS RANK
-    #VERTICAL IS FILE
-    
-    def diagonal_legal(self): #bishop/queen/king
-        limit = self.legal[1]
-        legal_moves = []
-        for i in range(1, 9):
-            if i < limit + 1 or limit == 0:
-                if self.rank - i > 0 and self.file - i > 0:
-                    legal_moves.append([self.rank - i, self.file - i])
-                if self.rank + i <= 8 and self.file + i <= 8:
-                    legal_moves.append([self.rank + i, self.file + i])
-                if self.rank + i <= 8 and self.file - i > 0:
-                    legal_moves.append([self.rank + i, self.file - i])
-                if self.rank - i > 0 and self.file + i <= 8:
-                    legal_moves.append([self.rank - i, self.file+ i])
-        return legal_moves
     
 class Pawn(Pieces):
     # shadow pawns behind two square moves that only other pawns can see
@@ -204,8 +167,7 @@ while not done:
             for piece in board.entities:
                 if piece.rect.collidepoint(x, y):
                     if not piece.game_piece:
-                        print("moving")
-                        print(f"{board.active_piece.name[0]}{board.active_piece.name[2]}: {board.active_piece.name[4:]}-{al[piece.rank-1]}{piece.file}")
+                        # print(f"{board.active_piece.name[0]}{board.active_piece.name[2]}: {board.active_piece.name[4:]}-{al[piece.rank-1]}{piece.file}")
                         
                         board.active_piece.name = f"{board.active_piece.name[:3]}_{al[piece.rank-1]}{piece.file}"
                         board.active_piece.rank = piece.rank
@@ -226,18 +188,7 @@ while not done:
                     
                     else:
                         board.move_dots, board.entities, board.active_piece = [], board.pieces, piece
-                        r_leg, f_leg, d_leg, n_leg, p_leg = [], [], [], [], []
-                        
-                        print(piece.legal_moves())
-                        
-                        if piece.legal[0][0]:
-                            f_leg = [(piece.rank, file) for file in piece.straight_legal(piece.file)]
-                        if piece.legal[0][1]:
-                            r_leg = [(rank, piece.file) for rank in piece.straight_legal(piece.rank)]
-                        if piece.legal[0][2]:
-                            d_leg = piece.diagonal_legal()
-
-                        legal_squares = f_leg + r_leg + d_leg
+                        legal_squares = piece.legal_moves()
                         board.move_dots.extend(Move(square) for square in legal_squares)
                         board.entities = board.entities + board.move_dots
 
