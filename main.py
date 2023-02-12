@@ -138,7 +138,7 @@ class Pieces():
                     (self.rank - 1, self.file + 2),
                 )
             )
-            legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9)]
+            legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9) and (rank, file) not in board.piece_locations]
 
         all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
         all_moves.sort()
