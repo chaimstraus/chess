@@ -69,49 +69,62 @@ class Pieces():
     
     def legal_moves(self):  # sourcery skip: low-code-quality        
         squares = list(range(1,9))
-        rank = self.rank
-        file = self.file
         limit = self.legal[1]
-        
+
         legal_squares_file = []
         legal_squares_rank = []
         legal_squares_diagonal = []
+        legal_squares_knight = []
 
         if self.legal[0][0]:
-            start_file = (file - 1) if self.colour == "w" and self.name[2] == "P" else (max(1, file - limit) - 1)
-            end_file = file if self.colour == "b" and self.name[2] == "P" else min(file + limit, 8)
+            start_file = (self.file - 1) if self.colour == "w" and self.name[2] == "P" else (max(1, self.file - limit) - 1)
+            end_file = self.file if self.colour == "b" and self.name[2] == "P" else min(self.file + limit, 8)
             legal_squares_file = (
                 (squares[start_file : end_file])
                 if limit
                 else squares.copy()
             )
-            legal_squares_file = [(self.rank, y) for y in legal_squares_file if y != file]
-            
+            legal_squares_file = [(self.rank, y) for y in legal_squares_file if y != self.file]
+
         if self.legal[0][1]:
             legal_squares_rank = (
-                (squares[max(1, rank - limit) - 1 : min(rank + limit, 8)])
+                (squares[max(1, self.rank - limit) - 1 : min(self.rank + limit, 8)])
                 if limit
                 else squares.copy()
             )
-            legal_squares_rank = [(x, self.file) for x in legal_squares_rank if x != rank]
-        
+            legal_squares_rank = [(x, self.file) for x in legal_squares_rank if x != self.rank]
+
         if self.legal[0][2]:
             for i in range(1, 9):
                 if i < limit + 1 or limit == 0:
-                    if self.rank - i > 0 and self.file - i > 0:
-                        legal_squares_diagonal.append([self.rank - i, self.file - i])
-                    if self.rank + i <= 8 and self.file + i <= 8:
-                        legal_squares_diagonal.append([self.rank + i, self.file + i])
-                    if self.rank + i <= 8 and self.file - i > 0:
-                        legal_squares_diagonal.append([self.rank + i, self.file - i])
-                    if self.rank - i > 0 and self.file + i <= 8:
-                        legal_squares_diagonal.append([self.rank - i, self.file+ i])
-        
+                    if self.rank - i > 0:
+                        if self.file - i > 0:
+                            legal_squares_diagonal.append([self.rank - i, self.file - i])
+                        if self.file + i <= 8:
+                            legal_squares_diagonal.append([self.rank - i, self.file+ i])
+                    if self.rank + i <= 8:
+                        if self.file + i <= 8:
+                            legal_squares_diagonal.append([self.rank + i, self.file + i])
+                        if self.file - i > 0:
+                            legal_squares_diagonal.append([self.rank + i, self.file - i])
+
         #knight movement
         if self.legal[0][3]:
-            pass
+            legal_squares_knight.extend(
+                (
+                    (self.rank + 2, self.file + 1),
+                    (self.rank + 2, self.file - 1),
+                    (self.rank - 2, self.file - 1),
+                    (self.rank - 2, self.file + 1),
+                    (self.rank + 1, self.file + 2),
+                    (self.rank + 1, self.file - 2),
+                    (self.rank - 1, self.file - 2),
+                    (self.rank - 1, self.file + 2),
+                )
+            )
+            legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9)]
 
-        return legal_squares_rank + legal_squares_file + legal_squares_diagonal
+        return legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
     
 class Pawn(Pieces):
     # shadow pawns behind two square moves that only other pawns can see
@@ -120,34 +133,34 @@ class Pawn(Pieces):
     def __init__(self, piece, rank, file):
         super().__init__(piece, rank, file)
         self.start = True
-        self.legal = [(1, 0, 0), 2]
+        self.legal = [(1, 0, 0, 0), 2]
         
 class Rook(Pieces):
     def __init__(self, piece, rank, file):
         super().__init__(piece, rank, file)
         self.castle = True
-        self.legal = ((1, 1, 0), 0)
+        self.legal = ((1, 1, 0, 0), 0)
     
 class Knight(Pieces):
     def __init__(self, piece, rank, file):
         super().__init__(piece, rank, file)
-        self.legal = ((0, 0, 0), 0)
+        self.legal = ((0, 0, 0, 1), 0)
 
 class Bishop(Pieces):
     def __init__(self, piece, rank, file):
         super().__init__(piece, rank, file)
-        self.legal = ((0, 0, 1), 0)
+        self.legal = ((0, 0, 1, 0), 0)
 
 class Queen(Pieces):
     def __init__(self, piece, rank, file):
         super().__init__(piece, rank, file)
-        self.legal = ((1, 1, 1), 0)
+        self.legal = ((1, 1, 1, 0), 0)
 
 class King(Pieces):
     def __init__(self, piece, rank, file):
         super().__init__(piece, rank, file)
         self.castle = True
-        self.legal = ((1, 1, 1), 1)
+        self.legal = ((1, 1, 1, 0), 1)
 
 class Move(Pieces):
     def __init__(self, pos):
