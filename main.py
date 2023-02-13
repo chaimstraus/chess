@@ -49,7 +49,7 @@ class Board():
         
         self.move_dots = []
         self.capture_dots = []
-        self.entities = self.pieces + self.move_dots
+        self.dots = []
         self.active_piece = None
         self.image = pygame.image.load("images\\board.png").convert()
         self.screen = screen
@@ -95,6 +95,7 @@ class Pieces():
         legal_squares_knight = []
         legal_captures = []
 
+        # vertical movement (in the rank)
         if self.legal[0][0]:
             lsfb = [list(map(int, x)) for x in "12345678".split(str(self.file))]
             lsfb[0].reverse()
@@ -117,6 +118,7 @@ class Pieces():
                         break
                     legal_squares_file.append((self.rank, move))
 
+        # horizontal movement (in the file)
         if self.legal[0][1]:
             lsrb = [list(map(int, x)) for x in "12345678".split(str(self.rank))]
             lsrb[0].reverse()
@@ -133,6 +135,7 @@ class Pieces():
                         break
                     legal_squares_rank.append((move, self.file))
 
+        # diagonal movement
         if self.legal[0][2]:
             for i in range(1, 9):
                 if i < limit + 1 or limit == 0:
@@ -147,7 +150,7 @@ class Pieces():
                         if self.file - i > 0:
                             legal_squares_diagonal.append((self.rank + i, self.file - i))
 
-        #knight movement
+        #knight movement (L)
         if self.legal[0][3]:
             all_squares_knight = (
                 (
@@ -173,8 +176,6 @@ class Pieces():
             legal_squares_knight = [x for x in legal_squares_knight if x not in occupied_squares]                        
 
         all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
-        
-        print(legal_captures)
         
         return all_moves, legal_captures
     
@@ -217,7 +218,8 @@ class King(Pieces):
 class Move(Pieces):
     def __init__(self, pos, capture = False):
         super().__init__("capture_dot" if capture else "dot", pos[0], pos[1], False)
-        
+        self.capture = capture
+
 
 pygame.init()
 pygame.display.set_caption('chess')
@@ -227,47 +229,50 @@ clock = pygame.time.Clock()
 board = Board(screen)
 done = False
 while not done:
-# --- main event loop ---
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             done = True
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            for piece in board.entities:
-                if piece.rect.collidepoint(x, y):
-                    if isinstance(piece, Move):
-                        print(f"{board.active_piece.name[0]}{board.active_piece.name[2]}: {board.active_piece.name[4:]}-{al[piece.rank-1]}{piece.file}")
-                        board.active_piece.name = f"{board.active_piece.name[:3]}_{al[piece.rank-1]}{piece.file}"
-                        board.active_piece.rank = piece.rank
-                        board.active_piece.file = piece.file
-
-                        if hasattr(board.active_piece, "start"):
-                            board.active_piece.start = False
-                            board.active_piece.legal[1] = 1
-                        if hasattr(board.active_piece, "castle"):
-                            board.active_piece.castle = False
-
-                        board.move_dots = []
-                        board.capture_dots = []
-                        board.entities = board.pieces
-                        board.active_piece = None
-                        board.update_piece_locations()
-
-                    elif piece == board.active_piece:
-                        board.active_piece = None
-                        board.move_dots = []
-                        board.capture_dots = []
-                        board.entities = board.pieces
-
+            for square in board.dots:
+                if square.rect.collidepoint(x, y):
+                    if square.capture:
+                        print(f"{board.active_piece.name[2]}x{al[square.rank-1]}{square.file}")
+                        for piece in board.pieces:
+                            if piece.get_board_position() == (square.rank, square.file):
+                                board.pieces.remove(piece)
                     else:
-                        # print("piece")
-                        board.move_dots = []
-                        board.entities = board.pieces
+                        print(f"{board.active_piece.name[0]}{board.active_piece.name[2]}: {board.active_piece.name[4:]}-{al[square.rank-1]}{square.file}")
+
+                    board.active_piece.name = f"{board.active_piece.name[:3]}_{al[square.rank-1]}{square.file}"
+                    board.active_piece.rank = square.rank
+                    board.active_piece.file = square.file
+
+                    if hasattr(board.active_piece, "start"):
+                        board.active_piece.start = False
+                        board.active_piece.legal[1] = 1
+                    if hasattr(board.active_piece, "castle"):
+                        board.active_piece.castle = False
+
+                    board.move_dots = []
+                    board.capture_dots = []
+                    board.dots = []
+                    board.active_piece = None
+                    board.update_piece_locations()
+
+            for piece in board.pieces:
+                if piece.rect.collidepoint(x, y):
+                    board.move_dots = []
+                    board.capture_dots = []
+                    board.dots = []
+                    if piece == board.active_piece:
+                        board.active_piece = None
+                    else:
                         board.active_piece = piece
                         legal_squares = piece.legal_moves()
-                        board.move_dots.extend(Move(square) for square in legal_squares[0])
-                        board.capture_dots.extend(Move(square, True) for square in legal_squares[1])
-                        board.entities = board.entities + board.move_dots + board.capture_dots
+                        board.move_dots = [Move(square) for square in legal_squares[0]]
+                        board.capture_dots = [Move(square, True) for square in legal_squares[1]]
+                        board.dots = board.move_dots + board.capture_dots
 
     board.display()
     for piece in board.pieces:
@@ -277,5 +282,4 @@ while not done:
     for dot in board.capture_dots:
         dot.display(screen)
     pygame.display.flip()
-    # --- limit the screen fps
     clock.tick(30)
