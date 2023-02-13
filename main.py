@@ -149,7 +149,7 @@ class Pieces():
 
         #knight movement
         if self.legal[0][3]:
-            legal_squares_knight.extend(
+            all_squares_knight = (
                 (
                     (self.rank + 2, self.file + 1),
                     (self.rank + 2, self.file - 1),
@@ -161,19 +161,18 @@ class Pieces():
                     (self.rank - 1, self.file + 2),
                 )
             )
-            legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9)]
+            occupied_squares = []
+            legal_squares_knight = [(rank, file) for rank, file in all_squares_knight if rank in range(1, 9) and file in range(1, 9)]
             for i in legal_squares_knight:
                 if i in board.piece_locations:
-                    legal_captures.append(i)
-                    legal_squares_knight.remove(i)
+                    occupied_squares.append(i)
+                    if self.colour == "w" and i in board.black_piece_locations:
+                        legal_captures.append(i)
+                    elif self.colour == "b" and i in board.white_piece_locations:
+                        legal_captures.append(i)
+            legal_squares_knight = [x for x in legal_squares_knight if x not in occupied_squares]                        
 
         all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
-        all_moves.sort()
-        # print(all_moves)
-        # legal_moves = [square for square in all_moves if square not in board.piece_locations]
-        # print(legal_moves)
-        # legal_captures = [square for square in all_moves if square in board.piece_locations]
-        # print(legal_captures)
         
         print(legal_captures)
         
