@@ -1,0 +1,3 @@
+- castling
+- en passant
+- check detection for legal moves

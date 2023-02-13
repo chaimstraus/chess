@@ -1,4 +1,3 @@
-import numpy as np
 import pygame
 from string import ascii_lowercase as al
 
@@ -284,7 +283,7 @@ class Move(Pieces):
 
 if __name__ == "__main__":
     pygame.init()
-    pygame.display.set_caption('chess')
+    pygame.display.set_caption('chess | press r to reset board')
     screen_size = [480, 480]
     screen = pygame.display.set_mode(screen_size)
     clock = pygame.time.Clock()
