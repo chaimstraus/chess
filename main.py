@@ -56,6 +56,8 @@ class Board():
     
     def update_piece_locations(self):
         self.piece_locations = [piece.get_board_position() for piece in self.pieces]
+        self.white_piece_locations = []
+        self.black_piece_locations = []
         for piece in self.pieces:
             if piece.colour == "w":
                 self.white_piece_locations.append(piece.get_board_position())
@@ -106,17 +108,19 @@ class Pieces():
                 for move in move_list:
                     if (
                         self.name[2] == "P"
-                        and (self.colour == "w" and move < self.file)
-                        or (self.colour == "b" and move > self.file)
+                        and ((self.colour == "w" and move < self.file)
+                        or (self.colour == "b" and move > self.file))
                     ):
                         continue
                     if (self.rank, move) in board.piece_locations:
-                        if self.colour == "b" and (self.rank, move) in board.white_piece_locations:
-                            legal_captures.append((self.rank, move))
-                        elif self.colour == "w" and (self.rank, move) in board.black_piece_locations:
-                            legal_captures.append((self.rank, move))
+                        if self.name[2] != "P":
+                            if self.colour == "b" and (self.rank, move) in board.white_piece_locations:
+                                legal_captures.append((self.rank, move))
+                            elif self.colour == "w" and (self.rank, move) in board.black_piece_locations:
+                                legal_captures.append((self.rank, move))
                         break
-                    legal_squares_file.append((self.rank, move))
+                    else:
+                        legal_squares_file.append((self.rank, move))
 
         # horizontal movement (in the file)
         if self.legal[0][1]:
@@ -177,6 +181,18 @@ class Pieces():
 
         all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
         
+        if self.name[2] == "P":
+            if self.colour == "w":
+                if (self.rank + 1, self.file + 1) in board.black_piece_locations:
+                    legal_captures.append((self.rank + 1, self.file + 1))
+                if (self.rank - 1, self.file + 1) in board.black_piece_locations:
+                    legal_captures.append((self.rank - 1, self.file + 1))
+            else:
+                if (self.rank + 1, self.file - 1) in board.white_piece_locations:
+                    legal_captures.append((self.rank + 1, self.file - 1))
+                if (self.rank - 1, self.file - 1) in board.white_piece_locations:
+                    legal_captures.append((self.rank - 1, self.file - 1))
+        
         return all_moves, legal_captures
     
 class Pawn(Pieces):
@@ -234,6 +250,7 @@ while not done:
             done = True
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
+            piece_contact = False
             for square in board.dots:
                 if square.rect.collidepoint(x, y):
                     if square.capture:
@@ -258,7 +275,7 @@ while not done:
                     board.capture_dots = []
                     board.dots = []
                     board.active_piece = None
-                    board.update_piece_locations()
+                    piece_contact = True
 
             for piece in board.pieces:
                 if piece.rect.collidepoint(x, y):
@@ -273,7 +290,15 @@ while not done:
                         board.move_dots = [Move(square) for square in legal_squares[0]]
                         board.capture_dots = [Move(square, True) for square in legal_squares[1]]
                         board.dots = board.move_dots + board.capture_dots
-
+                    piece_contact = True
+            
+            if not piece_contact:
+                board.active_piece = None
+                board.move_dots = []
+                board.capture_dots = []
+                board.dots = []
+    
+    board.update_piece_locations()
     board.display()
     for piece in board.pieces:
         piece.display(screen)
