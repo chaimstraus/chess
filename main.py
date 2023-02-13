@@ -39,7 +39,16 @@ class Board():
             Pawn("b_P", 8, 7),
         ]
         self.piece_locations = [piece.get_board_position() for piece in self.pieces]
+        self.white_piece_locations = []
+        self.black_piece_locations = []
+        for piece in self.pieces:
+            if piece.colour == "w":
+                self.white_piece_locations.append(piece.get_board_position())
+            else:
+                self.black_piece_locations.append(piece.get_board_position())
+        
         self.move_dots = []
+        self.capture_dots = []
         self.entities = self.pieces + self.move_dots
         self.active_piece = None
         self.image = pygame.image.load("images\\board.png").convert()
@@ -47,6 +56,11 @@ class Board():
     
     def update_piece_locations(self):
         self.piece_locations = [piece.get_board_position() for piece in self.pieces]
+        for piece in self.pieces:
+            if piece.colour == "w":
+                self.white_piece_locations.append(piece.get_board_position())
+            else:
+                self.black_piece_locations.append(piece.get_board_position())
     
     def display(self):
         screen.blit(self.image, (0, 0))
@@ -79,6 +93,7 @@ class Pieces():
         legal_squares_rank = []
         legal_squares_diagonal = []
         legal_squares_knight = []
+        legal_captures = []
 
         if self.legal[0][0]:
             lsfb = [list(map(int, x)) for x in "12345678".split(str(self.file))]
@@ -88,14 +103,18 @@ class Pieces():
                 if limit:
                     move_list = move_list[:limit]
                 for move in move_list:
-                    if (self.rank, move) in board.piece_locations:
-                        break
                     if (
                         self.name[2] == "P"
                         and (self.colour == "w" and move < self.file)
                         or (self.colour == "b" and move > self.file)
                     ):
                         continue
+                    if (self.rank, move) in board.piece_locations:
+                        if self.colour == "b" and (self.rank, move) in board.white_piece_locations:
+                            legal_captures.append((self.rank, move))
+                        elif self.colour == "w" and (self.rank, move) in board.black_piece_locations:
+                            legal_captures.append((self.rank, move))
+                        break
                     legal_squares_file.append((self.rank, move))
 
         if self.legal[0][1]:
@@ -107,6 +126,10 @@ class Pieces():
                     move_list = move_list[:limit]
                 for move in move_list:
                     if (move, self.file) in board.piece_locations:
+                        if self.colour == "b" and (move, self.file) in board.white_piece_locations:
+                            legal_captures.append((move, self.file))
+                        elif self.colour == "w" and (move, self.file) in board.black_piece_locations:
+                            legal_captures.append((move, self.file))
                         break
                     legal_squares_rank.append((move, self.file))
 
@@ -138,7 +161,11 @@ class Pieces():
                     (self.rank - 1, self.file + 2),
                 )
             )
-            legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9) and (rank, file) not in board.piece_locations]
+            legal_squares_knight = [(rank, file) for rank, file in legal_squares_knight if rank in range(1, 9) and file in range(1, 9)]
+            for i in legal_squares_knight:
+                if i in board.piece_locations:
+                    legal_captures.append(i)
+                    legal_squares_knight.remove(i)
 
         all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
         all_moves.sort()
@@ -148,7 +175,9 @@ class Pieces():
         # legal_captures = [square for square in all_moves if square in board.piece_locations]
         # print(legal_captures)
         
-        return all_moves
+        print(legal_captures)
+        
+        return all_moves, legal_captures
     
 class Pawn(Pieces):
     # shadow pawns behind two square moves that only other pawns can see
@@ -187,8 +216,8 @@ class King(Pieces):
         self.legal = ((1, 1, 1, 0), 1)
 
 class Move(Pieces):
-    def __init__(self, pos):
-        super().__init__("dot", pos[0], pos[1], False)
+    def __init__(self, pos, capture = False):
+        super().__init__("capture_dot" if capture else "dot", pos[0], pos[1], False)
         
 
 pygame.init()
@@ -220,6 +249,7 @@ while not done:
                             board.active_piece.castle = False
 
                         board.move_dots = []
+                        board.capture_dots = []
                         board.entities = board.pieces
                         board.active_piece = None
                         board.update_piece_locations()
@@ -227,6 +257,7 @@ while not done:
                     elif piece == board.active_piece:
                         board.active_piece = None
                         board.move_dots = []
+                        board.capture_dots = []
                         board.entities = board.pieces
 
                     else:
@@ -235,13 +266,16 @@ while not done:
                         board.entities = board.pieces
                         board.active_piece = piece
                         legal_squares = piece.legal_moves()
-                        board.move_dots.extend(Move(square) for square in legal_squares)
-                        board.entities = board.entities + board.move_dots
+                        board.move_dots.extend(Move(square) for square in legal_squares[0])
+                        board.capture_dots.extend(Move(square, True) for square in legal_squares[1])
+                        board.entities = board.entities + board.move_dots + board.capture_dots
 
     board.display()
     for piece in board.pieces:
         piece.display(screen)
     for dot in board.move_dots:
+        dot.display(screen)
+    for dot in board.capture_dots:
         dot.display(screen)
     pygame.display.flip()
     # --- limit the screen fps
