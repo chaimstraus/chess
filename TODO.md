@@ -1,3 +1,7 @@
 - castling
 - en passant
-- check detection for legal moves
+- check detection for legal moves (can only move king/block check)
+  - this is going to be annoying. only moving king? easy. blocking? harder.
+  - mayb after the player tries to make a move, check the line of check again to see if the king is still the first intercepted move
+  - if he is, it won't work
+  - and that should also work if the king moves out of the way! bc/ he's not intercepting anymore
