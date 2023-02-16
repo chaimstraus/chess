@@ -65,7 +65,20 @@ class Board():
     
     def display(self):
         screen.blit(self.image, (0, 0))
-
+    
+    def check_attacked_squares(self):
+        return sorted(
+            dict.fromkeys(
+                [
+                    square
+                    for squares in [
+                        piece.legal_moves(True)[0] + piece.legal_moves(True)[1] for piece in self.pieces
+                    ]
+                    for square in squares
+                ]
+            )
+        )
+        
 class Pieces():
     def __init__(self, piece: str, rank: int, file: int, game_piece: bool = True, reset: bool = False):
         self.image = pygame.image.load(f"images\{piece}.png")
@@ -88,7 +101,7 @@ class Pieces():
         self.rect.top = y
         screen.blit(self.image, (x, y))
     
-    def check_interception(self, square):
+    def check_interception(self, square: tuple):
         if square in board.piece_locations:
             if self.colour == "w" and square in board.black_piece_locations:
                 return True, True
@@ -97,7 +110,7 @@ class Pieces():
             return True, False
         return False, False
     
-    def legal_moves(self):  # sourcery skip: low-code-quality        
+    def legal_moves(self, checking_squares = False):  # sourcery skip: low-code-quality        
         limit = self.legal[1]
         legal_squares_file = []
         legal_squares_rank = []
@@ -117,7 +130,8 @@ class Pieces():
                     if (
                         self.name[2] == "P"
                         and ((self.colour == "w" and move < self.file)
-                        or (self.colour == "b" and move > self.file))
+                        or (self.colour == "b" and move > self.file)
+                        or (checking_squares))
                     ):
                         continue
                     if (self.rank, move) in board.piece_locations:
@@ -156,7 +170,7 @@ class Pieces():
             for i in range(1, 9):
                 if i < limit + 1 or limit == 0:
                     if self.rank - i > 0:
-                        
+
                         if self.file - i > 0:
                             square = (self.rank - i, self.file - i)
                             if not down_left:
@@ -167,7 +181,7 @@ class Pieces():
                                         legal_captures.append(square)
                                 else:
                                     legal_squares_diagonal.append(square)
-                        
+
                         if self.file + i <= 8:
                             square = (self.rank - i, self.file + i)
                             if not up_left:
@@ -178,9 +192,9 @@ class Pieces():
                                         legal_captures.append(square)
                                 else:
                                     legal_squares_diagonal.append(square)
-                    
+
                     if self.rank + i <= 8:
-                        
+
                         if self.file + i <= 8:
                             square = (self.rank + i, self.file + i)
                             intercept, capture = self.check_interception(square)
@@ -191,7 +205,7 @@ class Pieces():
                                         legal_captures.append(square)
                                 else:
                                     legal_squares_diagonal.append(square)
-                        
+
                         if self.file - i > 0:
                             square = (self.rank + i, self.file - i)
                             intercept, capture = self.check_interception(square)
@@ -229,14 +243,24 @@ class Pieces():
             legal_squares_knight = [x for x in legal_squares_knight if x not in occupied_squares]                        
 
         all_moves = legal_squares_rank + legal_squares_file + legal_squares_diagonal + legal_squares_knight
-        
+
         # pawn capturing
         if self.name[2] == "P":
             for i in [-1, 1]:
                 pos = (self.rank + i, self.file + (1 if self.colour == "w" else -1))
                 if pos in (board.black_piece_locations if self.colour == "w" else board.white_piece_locations):
                     legal_captures.append(pos)
-        
+                if (
+                    checking_squares
+                    and pos[0] in range(1, 9)
+                    and pos[1] in range(1, 9)
+                ):
+                    all_moves.append(pos)
+
+        # if self.name[2] == "K":
+        #     if self.castle:
+        #         print("Can Castle")
+
         return all_moves, legal_captures
     
 class Pawn(Pieces):
@@ -244,7 +268,7 @@ class Pawn(Pieces):
     # for en passant
     # it makes me upset that this can actually work
     # leave an outline on rank, (3/6)
-    def __init__(self, piece, rank, file):
+    def __init__(self, piece: str, rank: int, file: int):
         super().__init__(piece, rank, file)
         self.start = True
         self.legal = [(1, 0, 0, 0), 2]
@@ -290,6 +314,7 @@ if __name__ == "__main__":
     board = Board(screen)
     white_turn = True
     done = False
+    board.check_attacked_squares()
     while not done:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -319,6 +344,10 @@ if __name__ == "__main__":
                         board.dots = []
                         board.active_piece = None
                         piece_contact = True
+                        
+                        board.update_piece_locations()
+                        board.check_attacked_squares()
+                        
                         white_turn = not(white_turn)
                 
                 user_pieces = [piece for piece in board.pieces if piece.colour == ("w" if white_turn else "b")]
@@ -332,6 +361,8 @@ if __name__ == "__main__":
                         else:
                             board.active_piece = piece
                             legal_squares = piece.legal_moves()
+                            if hasattr(piece, "castle"):
+                                print("piece involved in castling")
                             board.move_dots = [Move(square) for square in legal_squares[0]]
                             board.capture_dots = [Move(square, True) for square in legal_squares[1]]
                             board.dots = board.move_dots + board.capture_dots
@@ -346,7 +377,6 @@ if __name__ == "__main__":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 board.__init__(screen)
 
-        board.update_piece_locations()
         board.display()
         for piece in board.pieces:
             piece.display(screen)
